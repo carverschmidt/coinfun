@@ -51,17 +51,13 @@ def addressFromPrivateKey(privateKey, compressed=True):
   
 
 if __name__ == '__main__':
-  with open("WIF", "r") as file:
-    WIF = file.readline()
+  with open("fromWIF", "r") as file:
+    fromWIF = file.readline()
+  with open("toWIF", "r") as file:
+    toWIF = file.readline()
 
-  privateKey = wifToPrivateKey(WIF)
-  address = addressFromPrivateKey(privateKey)
-  print(address)
+  fromAddress = addressFromPrivateKey(wifToPrivateKey(fromWIF))
+  toAddress = addressFromPrivateKey(wifToPrivateKey(toWIF))
 
-  # with open("WIF", "w") as file:
-  #   file.write(WIF)
-
-  # import qrcode
-  # img = qrcode.make(address)
-  # img.save("address.png")
+  print("{} -> {}".format(fromAddress, toAddress))
 

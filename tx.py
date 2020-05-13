@@ -13,10 +13,14 @@ MAGIC = 0xe8f3e1e3
 NODES = socket.gethostbyname_ex('seed.bitcoinabc.org')[2]
 PORT = 8333
 
+OP_PUSHDATA1 = b'\x4c'
+OP_PUSHDATA2 = b'\x4d'
+
 OP_DUP = b'\x76'
 OP_HASH160 = b'\xA9'
 OP_EQUALVERIFY = b'\x88'
 OP_CHECKSIG = b'\xAC'
+OP_RETURN = b'\x6a'
 
 def dsha256(data):
   return hashlib.sha256(hashlib.sha256(data).digest()).digest()
@@ -104,16 +108,18 @@ def createBTCTxPayload(fromTx, fromIndex, toAddress, amount, privateKey):
   
   txOut = struct.pack('<qB', amount, len(scriptPubKey)) + scriptPubKey
 
-  unsignedTx = struct.pack('<lB', version, numInputs) + txIn 
-  unsignedTx += struct.pack('<B', numOutputs) + txOut + struct.pack('<L', lockTime)
-  unsignedTx += struct.pack('<L', hashCode)
+  preImage = struct.pack('<lB', version, numInputs) + txIn 
+  preImage += struct.pack('<B', numOutputs) + txOut + struct.pack('<L', lockTime)
+  preImage += struct.pack('<L', hashCode)
 
-  hashedTx = hashlib.sha256(hashlib.sha256(unsignedTx).digest()).digest()
-  signature = signingKey.sign_digest(hashedTx)
+  sigHash = dsha256(preImage)
+  signature = getSignature(signingKey, sigHash) 
+
+  vk = signingKey.get_verifying_key()
+  vk.verify_digest(signature, sigHash, sigdecode=ecdsa.util.sigdecode_der)
+
   signature += b'\x01'
 
-  print(pubKey.hex())
-  print(hex(len(pubKey)))
   scriptSig = struct.pack('<B', len(signature)) + signature + struct.pack('<B', len(pubKey)) + pubKey
 
   txIn = struct.pack('<32sLB', fromTx, fromIndex, len(scriptSig)) + scriptSig
@@ -129,7 +135,7 @@ def createBCHTxPayload(fromTx, fromIndex, toAddress, amount, privateKey):
   """Create BCH Tx Payload
   Has been tested... It work!!!!!
   """
-  fees = 400
+  fees = 252 
   nVersion = 1
   nSequence = b'\xFF\xFF\xFF\xFF'
 
@@ -145,12 +151,18 @@ def createBCHTxPayload(fromTx, fromIndex, toAddress, amount, privateKey):
 
   fromScriptPubKey = OP_DUP + OP_HASH160 + b'\x14' + pubKeyHash.digest() + OP_EQUALVERIFY + OP_CHECKSIG
 
-  toPubKeyHash = base58.b58decode(toAddress)[1:-4]
-  scriptPubKey = OP_DUP + OP_HASH160 + b'\x14' + toPubKeyHash + OP_EQUALVERIFY + OP_CHECKSIG
+  # toPubKeyHash = base58.b58decode(toAddress)[1:-4]
+  # scriptPubKey = OP_DUP + OP_HASH160 + b'\x14' + toPubKeyHash + OP_EQUALVERIFY + OP_CHECKSIG
+  
+  payload = b'FOLLOW ME ON INSTAGRAM! instagram.com/carverschmidt\n\nhttps://pastebin.com/tZJUYX26'
 
-  hashOutputs = dsha256(struct.pack('<qB', amount-fees, len(scriptPubKey)) + scriptPubKey)
+  scriptPubKey = OP_RETURN + OP_PUSHDATA1 + struct.pack('<B', len(payload)) + payload
 
-  lockTime = 0
+  output = struct.pack('<qB', amount - fees, len(scriptPubKey)) + scriptPubKey
+
+  hashOutputs = dsha256(output)
+
+  lockTime = 69420
   hashType = b'\x41\x00\x00\x00'
 
   preImage = struct.pack('<L', nVersion) + hashPrevouts + hashSequence + outpoint 
@@ -170,19 +182,20 @@ def createBCHTxPayload(fromTx, fromIndex, toAddress, amount, privateKey):
   numInputs = 1
   numOutputs = 1
   rawTx = struct.pack('<lB', nVersion, numInputs) + outpoint + struct.pack('<B', len(scriptSig))
-  rawTx += scriptSig + nSequence + struct.pack('<BqB', numOutputs, amount-fees, len(scriptPubKey))
-  rawTx += scriptPubKey + struct.pack('<L', lockTime)
+  rawTx += scriptSig + nSequence + struct.pack('<B', numOutputs)
+  rawTx += struct.pack('<qB', amount - fees, len(scriptPubKey)) + scriptPubKey
+  rawTx += struct.pack('<L', lockTime)
   return rawTx
   
 if __name__ == '__main__':
   versionMessage = createMessage(b'version', createVersionPayload())
   verackMessage = createMessage(b'verack', b'')
   
-  fromTx = bytes.fromhex('acd96385785b52e91ed4d916c777c92307b34426819854245ce346dcc00f3ee1')[::-1]
-  fromIndex = 1
-  toAddress = '18GSUbU1d5PiEttjFBvE9DHceBfPS3yZR2'
-  amount = 41873
-  privateKey = wifToPrivateKey('L56apAanasrwDQdJXazgthxwyagqtTeDeqMmct44xECr14k9SPMS')
+  fromTx = bytes.fromhex('8f1d08ca798c0cd9cd89d2397900735951b547ce1547f190ac470f528410b6e6')[::-1]
+  fromIndex = 0
+  toAddress = '1M24vJ2iAoFmD8E894a6AYHbdx6z3PqfvL'
+  amount = 41473
+  privateKey = wifToPrivateKey('KxV3XGaL9Zxpf6AeJu3mXcysHR2EwhYNGmCtmYGbEhtggYx1rSsv')
   
   rawTx = createBCHTxPayload(fromTx, fromIndex, toAddress, amount, privateKey)
   txMessage = createMessage(b'tx', rawTx)

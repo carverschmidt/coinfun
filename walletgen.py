@@ -1,4 +1,5 @@
 #!/usr/local/bin/python3
+import os
 import hashlib
 import ecdsa
 import base58
@@ -51,13 +52,17 @@ def addressFromPrivateKey(privateKey, compressed=True):
   
 
 if __name__ == '__main__':
-  with open("fromWIF", "r") as file:
-    fromWIF = file.readline()
-  with open("toWIF", "r") as file:
-    toWIF = file.readline()
+  privateKey = os.urandom(32)
+  WIF = wifFromPrivateKey(privateKey)
+  address = addressFromPrivateKey(privateKey)
 
-  fromAddress = addressFromPrivateKey(wifToPrivateKey(fromWIF))
-  toAddress = addressFromPrivateKey(wifToPrivateKey(toWIF))
+  print("WIF: ", WIF)
+  print("Address: ", address)
+  
+  # with open("WIF", "w") as file:
+  #   file.write(WIF)
 
-  print("{} -> {}".format(fromAddress, toAddress))
+  # import qrcode
+  # img = qrcode.make(address)
+  # img.save("address.png")
 
